@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -164,41 +165,41 @@ func ScanUrl(url2 string) {
 func ReportFile(resource string, path string) {
 	data := url.Values{"apikey": {apikey}, "resource": {resource}}
 
-	u, err := url.Parse(virustotalLink + "/file/report")
+	u, _ := url.Parse(virustotalLink + "/file/report")
 	u.RawQuery = data.Encode()
 
-	res, err := http.Get(u.String())
-	if err != nil {
-		panic(err)
+	Waiting()
+	start := 1
+	for {
+		res, _ := http.Get(u.String())
+
+		body, _ := ioutil.ReadAll(res.Body)
+
+		var ReportResponse = new(ReportResponse)
+		_ = json.Unmarshal(body, &ReportResponse)
+
+		if len(ReportResponse.Scans) > 0 {
+			data1 := []string{path, resource, ReportResponse.Md5, ReportResponse.Sha1, ReportResponse.Sha256, ReportResponse.Scandate}
+
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetHeader([]string{"Name", "Resource", "Md5", "Sha1", "Sha256", "Scan_date"})
+			table.Append(data1)
+
+			table.Render()
+
+			table1 := tablewriter.NewWriter(os.Stdout)
+			table1.SetHeader([]string{"Name AntiVirus", "Detected", "Version", "Result", "Update"})
+			for key1, value := range ReportResponse.Scans {
+				data2 := []string{key1, strconv.FormatBool(value.Detected), value.Version, value.Result, value.Update}
+				table1.Append(data2)
+			}
+			table1.Render()
+			break
+		}
+		time.Sleep(5 * time.Second)
+		start = start + 5
 	}
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	var ReportResponse = new(ReportResponse)
-	err = json.Unmarshal(body, &ReportResponse)
-	if err != nil {
-		panic(err)
-	}
-
-	data1 := []string{path, resource, ReportResponse.Md5, ReportResponse.Sha1, ReportResponse.Sha256, ReportResponse.Scandate}
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Name", "Resource", "Md5", "Sha1", "Sha256", "Scan_date"})
-	table.Append(data1)
-
-	table.Render()
-
-	table1 := tablewriter.NewWriter(os.Stdout)
-	table1.SetHeader([]string{"Name AntiVirus", "Detected", "Version", "Result", "Update"})
-
-	for key1, value := range ReportResponse.Scans {
-		data2 := []string{key1, strconv.FormatBool(value.Detected), value.Version, value.Result, value.Update}
-		table1.Append(data2)
-	}
-	table1.Render()
+	fmt.Println("(***) Time scanning: " + strconv.Itoa(start) + " Seconds")
 }
 
 func ReportUrl(resource string, url2 string) {
@@ -370,6 +371,15 @@ func Banner() {
 	b += "\n" + ("   ") + ("2. Url")
 	b += "\n" + ("   ") + ("3. Domain")
 	b += "\n" + ("   ") + ("4. Ip Address")
+	fmt.Println(b)
+}
+
+func Waiting() {
+	b := (``)
+	b += "\n" + (``)
+	b += "\n" + ("   ") + ("-------------------------------------------------------------------")
+	b += "\n" + ("   ") + ("|             Scanning > Waiting report > Hold a minute           |")
+	b += "\n" + ("   ") + ("-------------------------------------------------------------------")
 	fmt.Println(b)
 }
 
